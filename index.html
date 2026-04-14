@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+  <title>📡 TCP/IP 四层 · 分步传输 (详细说明)</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+    }
+    body {
+      background: linear-gradient(145deg, #0b1120 0%, #131e2f 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .game-container {
+      max-width: 1500px;
+      width: 100%;
+      background: rgba(18, 28, 40, 0.75);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(74, 144, 226, 0.25);
+      border-radius: 42px;
+      padding: 24px 28px 32px;
+      box-shadow: 0 25px 40px -10px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(0, 255, 255, 0.1);
+    }
+    h1 {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 600;
+      font-size: 2.2rem;
+      color: #e3f2fd;
+      text-shadow: 0 4px 12px #0050b3;
+      margin-bottom: 6px;
+      padding-left: 8px;
+    }
+    h1 span {
+      background: #1e3a5f;
+      padding: 2px 16px;
+      border-radius: 60px;
+      font-size: 1rem;
+      font-weight: 400;
+      color: #9ac7ff;
+      border: 1px solid #2e5f8e;
+    }
+    .subtitle {
+      color: #a0c4e8;
+      margin-bottom: 20px;
+      padding-left: 12px;
+      font-weight: 400;
+      border-left: 5px solid #2a9d8f;
+    }
+    .protocol-stack {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #0a1724b3;
+      border-radius: 40px;
+      padding: 6px 16px;
+      margin-bottom: 22px;
+      border: 1px solid #2e5f8e;
+    }
+    .layer-badge {
+      display: flex;
+      gap: 8px;
+    }
+    .layer-item {
+      padding: 8px 20px;
+      border-radius: 30px;
+      background: #1e3a5f;
+      color: #c5e2ff;
+      font-weight: 500;
+      border-bottom: 3px solid #3d7ea6;
+    }
+    .layer-item.active {
+      background: #2a9d8f;
+      color: white;
+      border-bottom-color: #b9f3e9;
+      box-shadow: 0 0 12px #2a9d8faa;
+    }
+    .dual-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    .panel {
+      background: #0e1a26c9;
+      backdrop-filter: blur(4px);
+      border-radius: 32px;
+      padding: 22px 24px;
+      border: 1px solid #2a4b6e;
+      box-shadow: 0 15px 25px -8px #0000004d, inset 0 0 0 1px #ffffff0d;
+    }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .panel-header h2 {
+      font-weight: 500;
+      font-size: 1.9rem;
+      color: #d6eaff;
+    }
+    .icon-badge {
+      background: #1a445b;
+      width: 48px;
+      height: 48px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      box-shadow: inset 0 2px 5px #00000055, 0 6px 8px #00000033;
+      border-bottom: 2px solid #5fa3d1;
+    }
+    .sender .icon-badge { background: #15455e; border-bottom-color: #4db8ff; }
+    .receiver .icon-badge { background: #1b4e4a; border-bottom-color: #2a9d8f; }
+
+    .input-area { margin-bottom: 20px; }
+    label {
+      display: block;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      color: #9dc1e0;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    textarea {
+      width: 100%;
+      background: #030b12e0;
+      border: 1.5px solid #2c5777;
+      border-radius: 20px;
+      padding: 14px 18px;
+      color: #e2f0fa;
+      font-size: 1.1rem;
+      resize: vertical;
+      min-height: 90px;
+      box-shadow: inset 0 6px 8px #00000055;
+    }
+    textarea:focus { outline: none; border-color: #3d9cd6; }
+
+    .packet-view {
+      background: #05121c;
+      border-radius: 20px;
+      padding: 18px 20px;
+      margin: 16px 0 10px;
+      border: 1px solid #1d5170;
+    }
+    .packet-title {
+      font-family: monospace;
+      color: #7fc3ff;
+      font-size: 0.9rem;
+      margin-bottom: 10px;
+      display: flex;
+    }
+    .packet-content {
+      background: #010b13;
+      padding: 16px 18px;
+      border-radius: 16px;
+      font-family: 'JetBrains Mono', 'Cascadia Mono', monospace;
+      font-size: 0.95rem;
+      color: #b7e0ff;
+      border: 1px solid #2c6480;
+      line-height: 1.6;
+      max-height: 300px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .layer-detail {
+      margin-top: 12px;
+      background: #0a1a28b3;
+      padding: 12px 16px;
+      border-radius: 18px;
+      color: #b8d4f0;
+      border-left: 6px solid #2a9d8f;
+      font-size: 0.9rem;
+    }
+    .ctrl-area {
+      margin-top: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+    }
+    .btn {
+      background: #1e405b;
+      border: none;
+      border-bottom: 3px solid #0e293d;
+      color: white;
+      padding: 14px 36px;
+      font-size: 1.3rem;
+      font-weight: 600;
+      border-radius: 60px;
+      cursor: pointer;
+      box-shadow: 0 6px 0 #0a1a26, 0 6px 12px black;
+      transition: all 0.08s;
+      border: 1px solid #3f7faa;
+    }
+    .btn:hover { background: #265e83; transform: translateY(-2px); }
+    .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #0a1a26; }
+    .btn:disabled { opacity: 0.5; pointer-events: none; }
+    .step-indicator {
+      background: #0d1e2b;
+      padding: 8px 24px;
+      border-radius: 40px;
+      border: 1px solid #2c6280;
+      color: #bdd6ec;
+      font-size: 1.2rem;
+    }
+    .status-badge {
+      background: #1a3f55;
+      padding: 6px 18px;
+      border-radius: 36px;
+      color: #d1e7ff;
+      border: 1px solid #3f7b9e;
+    }
+    .reset-link {
+      color: #9dc1e0;
+      margin-left: 20px;
+      cursor: pointer;
+      text-decoration: underline dotted;
+    }
+    .footnote { color: #6a93b5; margin-top: 12px; font-size: 0.85rem; text-align: center; }
+    hr { border: 0.5px solid #214a63; margin: 16px 0 8px; }
+    @media (max-width: 760px) {
+      .dual-panel { grid-template-columns: 1fr; }
+      h1 { font-size: 1.8rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="game-container">
+  <h1><span>🌐</span> TCP/IP 协议栈 · 分步封装与解封装 <span>SENDER → RECEIVER</span></h1>
+  <div class="subtitle">⚡ 应用层 · 传输层 · 网络层 · 网络接口层 — 点击“下一步”逐层观察</div>
+  
+  <!-- 层指示器 (发送方) -->
+  <div class="protocol-stack">
+    <div class="layer-badge" id="layerIndicatorSender">
+      <span class="layer-item" id="appLayer">应用层 (HTTP/FTP)</span>
+      <span class="layer-item" id="transLayer">传输层 (TCP/UDP)</span>
+      <span class="layer-item" id="netLayer">网络层 (IP)</span>
+      <span class="layer-item" id="linkLayer">网络接口层 (以太网)</span>
+    </div>
+    <span style="color:#7fc3ff;">➡️ 🌍 ➡️</span>
+    <div class="layer-badge" id="layerIndicatorReceiver">
+      <span class="layer-item" id="recvLinkLayer">网络接口层</span>
+      <span class="layer-item" id="recvNetLayer">网络层</span>
+      <span class="layer-item" id="recvTransLayer">传输层</span>
+      <span class="layer-item" id="recvAppLayer">应用层</span>
+    </div>
+  </div>
+
+  <div class="dual-panel">
+    <!-- 发送者 -->
+    <div class="panel sender">
+      <div class="panel-header"><div class="icon-badge">📤</div><h2>发送方 · 封装</h2></div>
+      <div class="input-area">
+        <label>📝 应用层原始数据</label>
+        <textarea id="appDataInput">Hello, TCP/IP!</textarea>
+      </div>
+      <div class="packet-view">
+        <div class="packet-title"><span>📦 当前封装状态</span><span style="margin-left: auto;" id="senderStepLabel">应用层</span></div>
+        <div class="packet-content" id="senderPacketDisplay">等待开始...</div>
+      </div>
+      <div class="layer-detail" id="senderDetailText">点击“下一步”开始封装过程。</div>
+    </div>
+    <!-- 接收者 -->
+    <div class="panel receiver">
+      <div class="panel-header"><div class="icon-badge">📥</div><h2>接收方 · 解封装</h2></div>
+      <div style="margin-bottom:16px;"><span class="status-badge" id="receiverStatus">⏳ 等待数据到达</span></div>
+      <div class="packet-view">
+        <div class="packet-title"><span>📨 当前解封装状态</span><span style="margin-left: auto;" id="receiverStepLabel">未开始</span></div>
+        <div class="packet-content" id="receiverPacketDisplay">—</div>
+      </div>
+      <div class="layer-detail" id="receiverDetailText">接收方将逐层剥离头部。</div>
+      <div style="margin-top:18px; background:#0a1e28; border-radius:18px; padding:12px 16px;">
+        <span style="color:#9dc1e0;">📄 最终应用数据: </span>
+        <span id="finalAppDataDisplay" style="color:#ddf4ff; font-weight:500;">—</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="ctrl-area">
+    <button class="btn" id="prevStepBtn" disabled>◀ 上一步</button>
+    <span class="step-indicator" id="globalStepDisplay">步骤 0 / 8</span>
+    <button class="btn" id="nextStepBtn">下一步 ▶</button>
+    <span class="reset-link" id="resetBtn">⟲ 重置</span>
+  </div>
+  <hr>
+  <div class="footnote">🧪 模拟流程：应用数据 → +TCP头 → +IP头 → +帧头尾 → 传输 → 解帧头 → 解IP头 → 解TCP头 → 还原数据</div>
+</div>
+
+<script>
+  (function(){
+    const MAX_STEP = 8;
+    let currentStep = 0;
+    let appData = "Hello, TCP/IP!";
+    let appLayerPDU = "", transportPDU = "", networkPDU = "", linkFrame = "";
+    let recvLinkPayload = "", recvNetPayload = "", recvTransPayload = "", recvAppData = "";
+
+    // 固定参数
+    const SRC_PORT=12345, DST_PORT=80, SRC_IP="192.168.1.100", DST_IP="10.0.0.2";
+    const MAC_SRC="AA:BB:CC:DD:EE:FF", MAC_DST="11:22:33:44:55:66";
+
+    // DOM
+    const appDataInput = document.getElementById('appDataInput');
+    const senderPacketDisplay = document.getElementById('senderPacketDisplay');
+    const senderDetailText = document.getElementById('senderDetailText');
+    const senderStepLabel = document.getElementById('senderStepLabel');
+    const receiverPacketDisplay = document.getElementById('receiverPacketDisplay');
+    const receiverDetailText = document.getElementById('receiverDetailText');
+    const receiverStepLabel = document.getElementById('receiverStepLabel');
+    const receiverStatus = document.getElementById('receiverStatus');
+    const finalAppDataDisplay = document.getElementById('finalAppDataDisplay');
+    const globalStepDisplay = document.getElementById('globalStepDisplay');
+    const prevBtn = document.getElementById('prevStepBtn');
+    const nextBtn = document.getElementById('nextStepBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    const layers = {
+      app: document.getElementById('appLayer'), trans: document.getElementById('transLayer'),
+      net: document.getElementById('netLayer'), link: document.getElementById('linkLayer'),
+      rLink: document.getElementById('recvLinkLayer'), rNet: document.getElementById('recvNetLayer'),
+      rTrans: document.getElementById('recvTransLayer'), rApp: document.getElementById('recvAppLayer')
+    };
+
+    // ---------- 格式化各层PDU (每属性一行) ----------
+    function buildAppLayerPDU(data) {
+      return `📄 [应用层]\n原始数据: "${data}"`;
+    }
+
+    function buildTransportPDU(payload) {
+      return `🔷 [传输层 TCP 段]\n源端口: ${SRC_PORT}\n目的端口: ${DST_PORT}\n序号: 1001\n确认号: 0\n标志: SYN\n🧩 载荷:\n${payload}`;
+    }
+
+    function buildNetworkPDU(payload) {
+      return `🔶 [网络层 IP 数据报]\n源IP: ${SRC_IP}\n目的IP: ${DST_IP}\n协议: TCP (6)\nTTL: 64\n🧩 载荷:\n${payload}`;
+    }
+
+    function buildLinkFrame(payload) {
+      return `🔲 [网络接口层 以太网帧]\n目的MAC: ${MAC_DST}\n源MAC: ${MAC_SRC}\n类型: 0x0800 (IPv4)\n🧩 载荷:\n${payload}\n🔚 FCS: 0x1A2B3C4D`;
+    }
+
+    // 各层功能描述（与表格一致）
+    const layerDesc = {
+      app: '应用层：负责如何使用数据 (如HTTP、FTP)，生成原始消息。',
+      trans: '传输层：负责数据完整性及可靠性 (TCP/UDP)，添加端口号。',
+      net: '网络层：负责处理数据包 (IP)，添加源/目的IP地址。',
+      link: '网络接口层：负责实际传输二进制数据 (以太网)，添加MAC地址和FCS。'
+    };
+
+    function refreshUI() {
+      globalStepDisplay.textContent = `步骤 ${currentStep} / ${MAX_STEP}`;
+      Object.values(layers).forEach(el => el.classList.remove('active'));
+
+      // 发送方显示
+      if (currentStep === 0) {
+        senderPacketDisplay.textContent = '⏸️ 等待开始，请点击“下一步”';
+        senderDetailText.textContent = '应用数据尚未封装。';
+        senderStepLabel.textContent = '准备';
+      } else if (currentStep === 1) {
+        appLayerPDU = buildAppLayerPDU(appData);
+        senderPacketDisplay.textContent = appLayerPDU;
+        senderDetailText.textContent = layerDesc.app;
+        senderStepLabel.textContent = '应用层';
+        layers.app.classList.add('active');
+      } else if (currentStep === 2) {
+        transportPDU = buildTransportPDU(appLayerPDU);
+        senderPacketDisplay.textContent = transportPDU;
+        senderDetailText.textContent = layerDesc.trans;
+        senderStepLabel.textContent = '传输层';
+        layers.trans.classList.add('active');
+      } else if (currentStep === 3) {
+        networkPDU = buildNetworkPDU(transportPDU);
+        senderPacketDisplay.textContent = networkPDU;
+        senderDetailText.textContent = layerDesc.net;
+        senderStepLabel.textContent = '网络层';
+        layers.net.classList.add('active');
+      } else if (currentStep === 4) {
+        linkFrame = buildLinkFrame(networkPDU);
+        senderPacketDisplay.textContent = linkFrame;
+        senderDetailText.textContent = layerDesc.link;
+        senderStepLabel.textContent = '网络接口层';
+        layers.link.classList.add('active');
+      } else if (currentStep >= 5) {
+        if (!linkFrame) linkFrame = buildLinkFrame(networkPDU);
+        senderPacketDisplay.textContent = linkFrame;
+        senderDetailText.textContent = '✅ 封装完成，帧已发送至网络。';
+        senderStepLabel.textContent = '已发送';
+        layers.link.classList.add('active');
+      }
+
+      // 接收方显示
+      if (currentStep < 5) {
+        receiverPacketDisplay.textContent = '⏳ 等待发送方完成封装并传输...';
+        receiverDetailText.textContent = '数据尚未到达接收方。';
+        receiverStepLabel.textContent = '等待';
+        receiverStatus.textContent = '⏳ 等待数据';
+        finalAppDataDisplay.textContent = '—';
+      } else {
+        if (currentStep === 5) {
+          recvLinkPayload = `[网络接口层解封装]\n提取帧载荷:\n${networkPDU}`;
+          receiverPacketDisplay.textContent = `🔲 收到以太网帧\n${linkFrame}\n\n⬇️ 解封装后:\n${recvLinkPayload}`;
+          receiverDetailText.textContent = '网络接口层：负责实际传输二进制数据，校验FCS后剥离帧头帧尾。';
+          receiverStepLabel.textContent = '网络接口层';
+          receiverStatus.textContent = '📡 网络接口层处理';
+          layers.rLink.classList.add('active');
+        } else if (currentStep === 6) {
+          recvNetPayload = `[网络层解封装]\n提取IP载荷:\n${transportPDU}`;
+          receiverPacketDisplay.textContent = `🔶 处理IP数据报\n${networkPDU}\n\n⬇️ 解封装后:\n${recvNetPayload}`;
+          receiverDetailText.textContent = '网络层：负责处理数据包，检查IP头部并路由到上层。';
+          receiverStepLabel.textContent = '网络层';
+          receiverStatus.textContent = '🌐 网络层处理';
+          layers.rNet.classList.add('active');
+        } else if (currentStep === 7) {
+          recvTransPayload = `[传输层解封装]\n提取TCP载荷:\n${appLayerPDU}`;
+          receiverPacketDisplay.textContent = `🔷 处理TCP段\n${transportPDU}\n\n⬇️ 解封装后:\n${recvTransPayload}`;
+          receiverDetailText.textContent = '传输层：负责数据完整性及可靠性，根据端口号交付应用。';
+          receiverStepLabel.textContent = '传输层';
+          receiverStatus.textContent = '🔄 传输层处理';
+          layers.rTrans.classList.add('active');
+        } else if (currentStep === 8) {
+          recvAppData = appData;
+          receiverPacketDisplay.textContent = `📄 应用层数据:\n${appLayerPDU}\n\n✅ 最终还原: "${recvAppData}"`;
+          receiverDetailText.textContent = '应用层：负责如何使用数据，应用程序获得原始消息。';
+          receiverStepLabel.textContent = '应用层';
+          receiverStatus.textContent = '✅ 接收完成';
+          finalAppDataDisplay.textContent = `"${recvAppData}"`;
+          layers.rApp.classList.add('active');
+        }
+        // 高亮接收方对应层
+        if (currentStep===5) layers.rLink.classList.add('active');
+        else if (currentStep===6) layers.rNet.classList.add('active');
+        else if (currentStep===7) layers.rTrans.classList.add('active');
+        else if (currentStep===8) layers.rApp.classList.add('active');
+      }
+
+      prevBtn.disabled = (currentStep === 0);
+      nextBtn.disabled = (currentStep === MAX_STEP);
+      nextBtn.textContent = currentStep === MAX_STEP ? '完成 ✓' : '下一步 ▶';
+      if (currentStep === 8) finalAppDataDisplay.textContent = `"${appData}"`;
+    }
+
+    function nextStep() {
+      if (currentStep < MAX_STEP) {
+        if (currentStep === 0) {
+          appData = appDataInput.value.trim() || "(空消息)";
+        }
+        currentStep++;
+        refreshUI();
+      }
+    }
+    function prevStep() { if (currentStep > 0) { currentStep--; refreshUI(); } }
+    function reset() { currentStep = 0; appData = appDataInput.value.trim() || "Hello, TCP/IP!"; refreshUI(); }
+
+    nextBtn.addEventListener('click', nextStep);
+    prevBtn.addEventListener('click', prevStep);
+    resetBtn.addEventListener('click', reset);
+    appDataInput.addEventListener('input', () => { if (currentStep===0) appData = appDataInput.value; });
+
+    refreshUI();
+  })();
+</script>
+</body>
+</html>
