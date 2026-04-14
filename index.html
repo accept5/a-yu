@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
-  <title>📡 TCP/IP 四层 · 分步传输 (清晰版)</title>
+  <title>📡 TCP/IP 四层 · 分步传输 (详细说明)</title>
   <style>
     * {
       box-sizing: border-box;
@@ -238,18 +238,19 @@
 <body>
 <div class="game-container">
   <h1><span>🌐</span> TCP/IP 协议栈 · 分步封装与解封装 <span>SENDER → RECEIVER</span></h1>
-  <div class="subtitle">⚡ 应用层 · 传输层 · 网络层 · 链路层 — 点击“下一步”逐层观察</div>
+  <div class="subtitle">⚡ 应用层 · 传输层 · 网络层 · 网络接口层 — 点击“下一步”逐层观察</div>
   
+  <!-- 层指示器 (发送方) -->
   <div class="protocol-stack">
     <div class="layer-badge" id="layerIndicatorSender">
-      <span class="layer-item" id="appLayer">应用层</span>
-      <span class="layer-item" id="transLayer">传输层</span>
-      <span class="layer-item" id="netLayer">网络层</span>
-      <span class="layer-item" id="linkLayer">链路层</span>
+      <span class="layer-item" id="appLayer">应用层 (HTTP/FTP)</span>
+      <span class="layer-item" id="transLayer">传输层 (TCP/UDP)</span>
+      <span class="layer-item" id="netLayer">网络层 (IP)</span>
+      <span class="layer-item" id="linkLayer">网络接口层 (以太网)</span>
     </div>
     <span style="color:#7fc3ff;">➡️ 🌍 ➡️</span>
     <div class="layer-badge" id="layerIndicatorReceiver">
-      <span class="layer-item" id="recvLinkLayer">链路层</span>
+      <span class="layer-item" id="recvLinkLayer">网络接口层</span>
       <span class="layer-item" id="recvNetLayer">网络层</span>
       <span class="layer-item" id="recvTransLayer">传输层</span>
       <span class="layer-item" id="recvAppLayer">应用层</span>
@@ -344,8 +345,16 @@
     }
 
     function buildLinkFrame(payload) {
-      return `🔲 [链路层 以太网帧]\n目的MAC: ${MAC_DST}\n源MAC: ${MAC_SRC}\n类型: 0x0800 (IPv4)\n🧩 载荷:\n${payload}\n🔚 FCS: 0x1A2B3C4D`;
+      return `🔲 [网络接口层 以太网帧]\n目的MAC: ${MAC_DST}\n源MAC: ${MAC_SRC}\n类型: 0x0800 (IPv4)\n🧩 载荷:\n${payload}\n🔚 FCS: 0x1A2B3C4D`;
     }
+
+    // 各层功能描述（与表格一致）
+    const layerDesc = {
+      app: '应用层：负责如何使用数据 (如HTTP、FTP)，生成原始消息。',
+      trans: '传输层：负责数据完整性及可靠性 (TCP/UDP)，添加端口号。',
+      net: '网络层：负责处理数据包 (IP)，添加源/目的IP地址。',
+      link: '网络接口层：负责实际传输二进制数据 (以太网)，添加MAC地址和FCS。'
+    };
 
     function refreshUI() {
       globalStepDisplay.textContent = `步骤 ${currentStep} / ${MAX_STEP}`;
@@ -359,26 +368,26 @@
       } else if (currentStep === 1) {
         appLayerPDU = buildAppLayerPDU(appData);
         senderPacketDisplay.textContent = appLayerPDU;
-        senderDetailText.textContent = '应用层：生成原始数据，准备交给传输层。';
+        senderDetailText.textContent = layerDesc.app;
         senderStepLabel.textContent = '应用层';
         layers.app.classList.add('active');
       } else if (currentStep === 2) {
         transportPDU = buildTransportPDU(appLayerPDU);
         senderPacketDisplay.textContent = transportPDU;
-        senderDetailText.textContent = '传输层：添加TCP头部（端口、序号等），形成TCP段。';
+        senderDetailText.textContent = layerDesc.trans;
         senderStepLabel.textContent = '传输层';
         layers.trans.classList.add('active');
       } else if (currentStep === 3) {
         networkPDU = buildNetworkPDU(transportPDU);
         senderPacketDisplay.textContent = networkPDU;
-        senderDetailText.textContent = '网络层：添加IP头部（源/目的IP地址），形成IP数据报。';
+        senderDetailText.textContent = layerDesc.net;
         senderStepLabel.textContent = '网络层';
         layers.net.classList.add('active');
       } else if (currentStep === 4) {
         linkFrame = buildLinkFrame(networkPDU);
         senderPacketDisplay.textContent = linkFrame;
-        senderDetailText.textContent = '链路层：添加以太网帧头和帧尾(FCS)，形成比特流。';
-        senderStepLabel.textContent = '链路层';
+        senderDetailText.textContent = layerDesc.link;
+        senderStepLabel.textContent = '网络接口层';
         layers.link.classList.add('active');
       } else if (currentStep >= 5) {
         if (!linkFrame) linkFrame = buildLinkFrame(networkPDU);
@@ -397,30 +406,30 @@
         finalAppDataDisplay.textContent = '—';
       } else {
         if (currentStep === 5) {
-          recvLinkPayload = `[链路层解封装]\n提取帧载荷:\n${networkPDU}`;
+          recvLinkPayload = `[网络接口层解封装]\n提取帧载荷:\n${networkPDU}`;
           receiverPacketDisplay.textContent = `🔲 收到以太网帧\n${linkFrame}\n\n⬇️ 解封装后:\n${recvLinkPayload}`;
-          receiverDetailText.textContent = '链路层：校验FCS，剥离帧头帧尾，上交网络层。';
-          receiverStepLabel.textContent = '链路层';
-          receiverStatus.textContent = '📡 链路层处理';
+          receiverDetailText.textContent = '网络接口层：负责实际传输二进制数据，校验FCS后剥离帧头帧尾。';
+          receiverStepLabel.textContent = '网络接口层';
+          receiverStatus.textContent = '📡 网络接口层处理';
           layers.rLink.classList.add('active');
         } else if (currentStep === 6) {
           recvNetPayload = `[网络层解封装]\n提取IP载荷:\n${transportPDU}`;
           receiverPacketDisplay.textContent = `🔶 处理IP数据报\n${networkPDU}\n\n⬇️ 解封装后:\n${recvNetPayload}`;
-          receiverDetailText.textContent = '网络层：检查IP头部，路由到上层协议(TCP)。';
+          receiverDetailText.textContent = '网络层：负责处理数据包，检查IP头部并路由到上层。';
           receiverStepLabel.textContent = '网络层';
           receiverStatus.textContent = '🌐 网络层处理';
           layers.rNet.classList.add('active');
         } else if (currentStep === 7) {
           recvTransPayload = `[传输层解封装]\n提取TCP载荷:\n${appLayerPDU}`;
           receiverPacketDisplay.textContent = `🔷 处理TCP段\n${transportPDU}\n\n⬇️ 解封装后:\n${recvTransPayload}`;
-          receiverDetailText.textContent = '传输层：根据端口号交给应用进程。';
+          receiverDetailText.textContent = '传输层：负责数据完整性及可靠性，根据端口号交付应用。';
           receiverStepLabel.textContent = '传输层';
           receiverStatus.textContent = '🔄 传输层处理';
           layers.rTrans.classList.add('active');
         } else if (currentStep === 8) {
           recvAppData = appData;
           receiverPacketDisplay.textContent = `📄 应用层数据:\n${appLayerPDU}\n\n✅ 最终还原: "${recvAppData}"`;
-          receiverDetailText.textContent = '应用层：接收方应用程序获得原始数据。';
+          receiverDetailText.textContent = '应用层：负责如何使用数据，应用程序获得原始消息。';
           receiverStepLabel.textContent = '应用层';
           receiverStatus.textContent = '✅ 接收完成';
           finalAppDataDisplay.textContent = `"${recvAppData}"`;
